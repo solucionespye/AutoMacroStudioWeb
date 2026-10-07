@@ -54,6 +54,7 @@ button.sm{padding:6px 10px;font-size:12px;border-width:1px}
   <div id="bar"><i></i></div>
   <div id="st">Esperando…</div>
   <button id="dl" class="hide">⬇ Descargar resultado</button>
+  <button id="sh" class="hide">📤 Compartir / elegir dónde guardar</button>
   <pre id="log"></pre>
 </div>
 </main>
@@ -269,7 +270,7 @@ const acceso=async(fn,alta)=>{
 };
 if(sb){
   $('entrar').onclick=()=>acceso(c=>sb.auth.signInWithPassword(c),false);
-  $('crear').onclick=()=>acceso(c=>sb.auth.signUp(c),true);
+  $('crear').onclick=()=>acceso(c=>sb.auth.signUp({...c,options:{emailRedirectTo:location.origin+location.pathname}}),true);
   $('salir').onclick=async()=>{await sb.auth.signOut();refrescarLic()};
   sb.auth.onAuthStateChange(()=>{setTimeout(refrescarLic,0)});
 }
@@ -290,9 +291,9 @@ function refrescar(){
   $('rowAutor').classList.toggle('hide',m.id!=='tuneado');
   $('go').disabled=!files.length;
 }
-sel.onchange=()=>{files=[];$('file').value='';$('fname').textContent='Ningún archivo seleccionado';$('dl').classList.add('hide');$('log').style.display='none';refrescar()};
+sel.onchange=()=>{files=[];$('file').value='';$('fname').textContent='Ningún archivo seleccionado';$('dl').classList.add('hide');$('sh').classList.add('hide');$('log').style.display='none';refrescar()};
 $('file').onchange=async e=>{
-  files=[...e.target.files];resultado=null;$('dl').classList.add('hide');
+  files=[...e.target.files];resultado=null;$('dl').classList.add('hide');$('sh').classList.add('hide');
   const malos=files.filter(f=>!/\.(xlsx|xlsm)$/i.test(f.name));
   if(malos.length){st('❌ Solo se admiten archivos .xlsx o .xlsm: '+malos.map(f=>f.name).join(', '));files=[];$('file').value='';$('fname').textContent='Ningún archivo seleccionado';refrescar();return}
   $('fname').textContent=files.length?files.map(f=>f.name).join(', '):'Ningún archivo seleccionado';
@@ -307,7 +308,7 @@ $('file').onchange=async e=>{
 $('go').onclick=async()=>{
   const m=cur();
   if(!(await refrescarLic())){st('🔴 '+(lic?lic.mensaje:'Inicia sesión'));return}
-  $('go').disabled=true;$('dl').classList.add('hide');$('log').style.display='none';prog(2);st('▶ Ejecutando…');
+  $('go').disabled=true;$('dl').classList.add('hide');$('sh').classList.add('hide');$('log').style.display='none';prog(2);st('▶ Ejecutando…');
   const t0=Date.now();
   try{
     await tick();
@@ -320,7 +321,7 @@ $('go').onclick=async()=>{
     }
     resultado=r;prog(100);registrar(m,true);
     st(`✔ Completado en ${((Date.now()-t0)/1000).toFixed(1)} s`);
-    $('log').textContent=r.log;$('log').style.display='block';$('dl').classList.remove('hide');
+    $('log').textContent=r.log;$('log').style.display='block';$('dl').classList.remove('hide');if(navigator.canShare&&navigator.canShare({files:[mkFile()]}))$('sh').classList.remove('hide');
   }catch(err){
     console.error(err);st('❌ Error: '+err.message);registrar(m,false,err.message);$('log').textContent=err.stack||String(err);$('log').style.display='block';prog(0);
   }
@@ -332,7 +333,19 @@ $('dl').onclick=async()=>{
     const d=await (window.claude&&claude.use?claude.use('downloads'):null);
     if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
   }catch(e){if(e&&e.code==='declined')return;console.warn(e)}
+  if(window.showSaveFilePicker){
+    try{
+      const h=await showSaveFilePicker({suggestedName:resultado.nombre,types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+      const w=await h.createWritable();await w.write(resultado.buf);await w.close();return;
+    }catch(e){if(e&&e.name==='AbortError')return;console.warn(e)}
+  }
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([resultado.buf]));a.download=resultado.nombre;a.click();
+};
+function mkFile(){return new File([resultado.buf],resultado.nombre,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+$('sh').onclick=async()=>{
+  if(!resultado)return;
+  try{await navigator.share({files:[mkFile()],title:resultado.nombre})}
+  catch(e){if(e&&e.name!=='AbortError')st('❌ No se pudo compartir: '+e.message)}
 };
 refrescar();
 </script>
