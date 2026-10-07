@@ -344,8 +344,10 @@ $('dl').onclick=async()=>{
 function mkFile(){return new File([resultado.buf],resultado.nombre,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
 $('sh').onclick=async()=>{
   if(!resultado)return;
-  try{await navigator.share({files:[mkFile()],title:resultado.nombre})}
-  catch(e){if(e&&e.name!=='AbortError')st('❌ No se pudo compartir: '+e.message)}
+  const f=mkFile();
+  if(navigator.canShare&&!navigator.canShare({files:[f]})){st('❌ Este navegador no permite compartir archivos .xlsx. Usa «Descargar».');return}
+  try{await navigator.share({files:[f]})}
+  catch(e){if(e&&e.name==='AbortError')return;st('❌ No se pudo compartir ('+(e&&e.name)+': '+(e&&e.message)+'). Usa «Descargar».')}
 };
 refrescar();
 </script>
