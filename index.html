@@ -228,8 +228,8 @@ const MACROS=[
 ];
 
 /* ============ Licencias (Supabase) ============ */
-const SB_URL='';   // <-- pega aquí la Project URL de Supabase
-const SB_KEY='';   // <-- pega aquí la clave anon public
+const SUPABASE_URL = "https://uftfbhkaienoukgdomvg.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_NOtoNEGu8fC4TYMVXI2Ysg_x79oBgfn";
 const sb=(SB_URL&&SB_KEY&&window.supabase)?supabase.createClient(SB_URL,SB_KEY):null;
 let lic=null;
 async function refrescarLic(){
