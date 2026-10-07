@@ -55,7 +55,7 @@ button.sm{padding:6px 10px;font-size:12px;border-width:1px}
 <div class="card">
   <div><label>1 · Macro</label><select id="macro"></select></div>
   <div id="desc" style="font-size:12px;color:var(--soft)"></div>
-  <label class="file" id="drop">Seleccionar Excel (.xlsx)<input type="file" id="file" accept=".xlsx,.xlsm"></label>
+  <label class="file" id="drop">Seleccionar Excel (.xlsx)<input type="file" id="file"></label>
   <div id="fname" style="font-size:12px;color:var(--soft);text-align:center">Ningún archivo seleccionado</div>
   <div id="rowHoja"><label>Hoja de trabajo</label><select id="hoja" disabled></select></div>
   <div id="rowAutor"><label>Autor volcado (columna AT)</label><input type="text" id="autor" value="JUANJOSE.PORRAS"></div>
@@ -301,7 +301,8 @@ function refrescar(){
 }
 sel.onchange=()=>{files=[];$('file').value='';$('fname').textContent='Ningún archivo seleccionado';$('dl').classList.add('hide');$('log').style.display='none';refrescar()};
 $('file').onchange=async e=>{
-  files=[...e.target.files];resultado=null;$('dl').classList.add('hide');
+  const todos=[...e.target.files];files=todos.filter(f=>/\.(xlsx|xlsm)$/i.test(f.name));resultado=null;$('dl').classList.add('hide');
+  if(todos.length&&files.length<todos.length){const mal=todos.filter(f=>!files.includes(f)).map(f=>f.name).join(', ');st('⚠ Ignorado (no es .xlsx/.xlsm): '+mal+(/\.xls$/i.test(mal)?' · guárdalo como .xlsx':''))}
   $('fname').textContent=files.length?files.map(f=>f.name).join(', '):'Ningún archivo seleccionado';
   if(files.length&&!cur().multi){
     try{
