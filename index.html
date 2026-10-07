@@ -55,8 +55,10 @@ button.sm{padding:6px 10px;font-size:12px;border-width:1px}
   <pre id="log"></pre>
 </div>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
 <script>
 const $=id=>document.getElementById(id);
 const raw=c=>{let v=c.value;if(v&&typeof v==='object'&&!(v instanceof Date)){if('result' in v)v=v.result;else if(v.richText)v=v.richText.map(t=>t.text).join('');else if('text' in v)v=v.text}return v==null?'':v};
@@ -82,10 +84,9 @@ for(let c=W;c>at;c--){const a=row.getCell(c-1),b=row.getCell(c);b.value=a.value;
 const z=row.getCell(at);z.value=null;z.style={};
 }
 }
-
 const MAP_Z=[["ALTAS POR AEREO","NO APLICA"],["AZOTEA","EN GESTION"],["CHALET ICT","EN GESTION"],["EN CONSTRUCCION","EN GESTION"],["FACHADA","NO REQUIERE"],["INTERIOR","EN GESTION"],["MIXTO","EN GESTION"],["PATIO","EN GESTION"],["PEDESTAL","NO REQUIERE"],["POSTE","NO APLICA"]];
 const MAP_AC=[["EN CONSTRUCCION","FECHA ENTREGA DE LLAVES DESCONOCIDA"],["MIXTO","¿Tipo de Instalaciones que servician a la finca?"]];
-const nest=(m,ref)=>m.reduceRight((acc,[k,v])=>"IF(${ref}="${k}","${v}",${acc})",'""');
+const nest=(m,ref)=>m.reduceRight((acc,[k,v])=>`IF(${ref}="${k}","${v}",${acc})`,'""');
 const LIST_AD='MV,MV/OR,MV/MM,MV/JZ,MV/OTROS,MV/OR/OTROS,MV/MM/OTROS,MV/JZ/OTROS,MV/MM/OR/OTROS,MV/MM/JZ/OTROS,MM,MM/OR,MM/JZ,MM/OTROS,MM/OR/OTROS,MM/JZ/OTROS,OR,OR/JZ,OR/OTROS,OR/JZ/OTROS,OTROS,NO FO';
 const LIST_T='ALTAS POR AEREO,AZOTEA,CHALET ICT,EN CONSTRUCCION,FACHADA,INTERIOR,MIXTO,PATIO,PEDESTAL,POSTE';
 const dvList=l=>({type:'list',allowBlank:true,formulae:['"'+l+'"'],showErrorMessage:true,errorStyle:'stop'});
@@ -126,19 +127,18 @@ const uf=lastRow(ws,6);
 const ceros=['Q','AN','BA','AT','U','Z','AR','AD','AC'].map(colN);
 for(let r=2;r<=uf;r++)ceros.forEach(c=>{g(r,c).value=0});
 g(1,53).value='GESCAL 12';fill(g(1,53),Y);
-const lbl=ws.getRow(1);
 for(let r=2;r<=uf;r++){
 const ba=String(raw(g(r,6))).slice(0,12);
 g(r,53).value=ba;
 const num=String(raw(g(r,9)));
 const fv=ba+'0'.repeat(Math.max(0,5-num.length))+num;
-g(r,40).value={formula:"IF(ISNUMBER(SEARCH("DUMMY",AC${r})),"1","0")",result:'0'};
-g(r,17).value={formula:"R${r}+S${r}",result:(+raw(g(r,18))||0)+(+raw(g(r,19))||0)};
-g(r,6).value={formula:"CONCATENATE(BA${r},CONCATENATE(REPT("0",5-LEN(I${r})),I${r}))",result:fv};
-g(r,3).value={formula:"CONCATENATE(F${r},J${r},K${r},L${r},M${r},N${r})",result:fv+K.join('')};
+g(r,40).value={formula:`IF(ISNUMBER(SEARCH("DUMMY",AC${r})),"1","0")`,result:'0'};
+g(r,17).value={formula:`R${r}+S${r}`,result:(+raw(g(r,18))||0)+(+raw(g(r,19))||0)};
+g(r,6).value={formula:`CONCATENATE(BA${r},CONCATENATE(REPT("0",5-LEN(I${r})),I${r}))`,result:fv};
+g(r,3).value={formula:`CONCATENATE(F${r},J${r},K${r},L${r},M${r},N${r})`,result:fv+K.join('')};
 g(r,46).value=o.autor;
 g(r,26).value={formula:nest(MAP_Z,'T'+r),result:''};
-g(r,21).value={formula:"IF(T${r}="INTERIOR","NO ICT","")",result:''};
+g(r,21).value={formula:`IF(T${r}="INTERIOR","NO ICT","")`,result:''};
 g(r,29).value={formula:nest(MAP_AC,'T'+r),result:''};
 ['F','Q','AN','BA'].forEach(x=>{g(r,colN(x)).numFmt='General'});
 g(r,23).numFmt='dd/mm/yyyy';
@@ -154,7 +154,7 @@ DV['AD2:AD'+uf]=dvList(LIST_AD);
 DV['W2:W'+uf]={type:'date',operator:'between',allowBlank:true,formulae:[new Date(Date.UTC(1899,11,31)),new Date(Date.UTC(2100,11,31))],showErrorMessage:true,errorStyle:'stop'};
 }
 const lb=lastRow(ws,2);
-for(let r=2;r<=lb;r++)g(r,44).value={formula:"IF(ISNUMBER(R${r}),0," ")",result:typeof raw(g(r,18))==='number'?0:' '};
+for(let r=2;r<=lb;r++)g(r,44).value={formula:`IF(ISNUMBER(R${r}),0," ")`,result:typeof raw(g(r,18))==='number'?0:' '};
 o.p(70);await tick();
 ws.getRow(1).height=30.6;
 const Wd=(a,b,w)=>{for(let c=colN(a);c<=colN(b||a);c++)ws.getColumn(c).width=w};
@@ -172,10 +172,11 @@ for(let c=1;c<=Math.max(ws.columnCount,53);c++)g(1,c).alignment={vertical:'botto
 ws.views=[{state:'frozen',xSplit:0,ySplit:1}];
 wb.calcProperties={fullCalcOnLoad:true};
 o.p(95);
-return {nombre:o.base+'_procesado.xlsx',log:"Hoja «${hoja}»: ${uf-1} filas tuneadas."};
+return {nombre:o.base+'_procesado.xlsx',log:`Hoja «${hoja}»: ${uf-1} filas tuneadas.`};
 }
 
 const H=["PROVINCIA","POBLACION","GESCAL26","CODIGO-POSTAL","FTTB-CODE","GESCAL17","TIPO-VIA","NOMBRE-VIA","NUM","BIS-DUPLICADO","BLOQUE","PORTAL-PUERTA","LETRA-FINCA","ESCALERA","CONCATENADO","ZONA-GPON","TOTALES","NUM-DE-HOGARES","NUM-DE-LOCALES","TIPO-DE-PERMISO","TIPO-INSTALACION-INTERIOR","REPLANTEO-REALIZADO","FECHA-DE-CENSO","FECHA-CONTACTADO","FECHA-FIRMA","ESTADO-DE-PERMISO","ID-PERMISO","AGENTE-DE-PERMISO","OBSERVACIONES","OPERADORES-PREVIOS","FINCA-PRIORITARIA-(ES-LATERAL)","NUM-DE-CARTAS-FIRMADAS","CLIENTES","NUM-CLIENTES-EXISTENTES","NUM-CLIENTES-MOVIL","CIENTES-NEBA-A-MIGRAR","SEMANA","COBERTURA","PROYECTO","DUMMY","ZONA-PON-ASBUILT","HOGARES-FUSIONADOS","CTOs","PLANO","AUTOR CENSO","AUTOR VOLCADO","Unnamed: 46","Unnamed: 47","Unnamed: 48","Unnamed: 49","Unnamed: 50","Unnamed: 51","GESCAL 12","CHECK","GESCAL12","Nº NOMBRES VIA"];
+
 async function unificar(files,o){
 const out=new ExcelJS.Workbook(),ws=out.addWorksheet('UNIFICADO');
 ws.addRow(H);
@@ -183,12 +184,12 @@ let ok=0,ko=0,tot=0,porArch='',errs='';
 for(let k=0;k<files.length;k++){
 const f=files[k];o.p(5+85*k/files.length);await tick();
 let wb=new ExcelJS.Workbook();
-try{await wb.xlsx.load(await f.arrayBuffer())}catch(e){ko++;errs+="\nARCHIVO: ${f.name}\n  No se pudo abrir (¿es .xls? guárdalo como .xlsx).\n  Archivo NO incorporado.\n";continue}
+try{await wb.xlsx.load(await f.arrayBuffer())}catch(e){ko++;errs+=`\nARCHIVO: ${f.name}\n  No se pudo abrir (¿es .xls? guárdalo como .xlsx).\n  Archivo NO incorporado.\n`;continue}
 const s=wb.worksheets[0];
-if(!s){ko++;errs+="\nARCHIVO: ${f.name}\n  No contiene hojas.\n  Archivo NO incorporado.\n";continue}
+if(!s){ko++;errs+=`\nARCHIVO: ${f.name}\n  No contiene hojas.\n  Archivo NO incorporado.\n`;continue}
 let e='';
-H.forEach((h,i)=>{const v=String(raw(s.getCell(1,i+1)));if(v.trim()!==h.trim())e+="  Columna ${i+1}\n    Esperado: "${h}"\n    Encontrado: "${v}"\n"});
-if(e){ko++;errs+="\nARCHIVO: ${f.name}\n  ENCABEZADOS INCORRECTOS:\n${e}  Archivo NO incorporado.\n";continue}
+H.forEach((h,i)=>{const v=String(raw(s.getCell(1,i+1)));if(v.trim()!==h.trim())e+=`  Columna ${i+1}\n    Esperado: "${h}"\n    Encontrado: "${v}"\n`});
+if(e){ko++;errs+=`\nARCHIVO: ${f.name}\n  ENCABEZADOS INCORRECTOS:\n${e}  Archivo NO incorporado.\n`;continue}
 let ult=1;
 for(let r=s.rowCount;r>=2&&ult===1;r--)for(let c=1;c<=55;c++)if(raw(s.getCell(r,c))!==''){ult=r;break}
 ok++;
@@ -196,7 +197,7 @@ for(let r=2;r<=ult;r++){
 const vals=[];for(let c=1;c<=55;c++)vals.push(raw(s.getCell(r,c))||null);
 const row=ws.addRow(vals);row.getCell(6).numFmt=s.getCell(r,6).numFmt;
 }
-tot+=ult-1;porArch+="\n• ${f.name} → ${(ult-1).toLocaleString('es-ES')} filas";
+tot+=ult-1;porArch+=`\n• ${f.name} → ${(ult-1).toLocaleString('es-ES')} filas`;
 }
 const cnt=new Map();
 for(let r=2;r<=tot+1;r++){const v=String(raw(ws.getCell(r,3))).trim().toLowerCase();if(v)cnt.set(v,(cnt.get(v)||0)+1)}
@@ -205,9 +206,9 @@ for(let r=2;r<=tot+1;r++){const c=ws.getCell(r,3),v=String(raw(c)).trim().toLowe
 ws.getRow(1).font={bold:true};
 ws.autoFilter={from:{row:1,column:1},to:{row:1,column:55}};
 H.forEach((h,i)=>{ws.getColumn(i+1).width=Math.min(40,Math.max(10,h.length+3))});
-const log="UNIFICACIÓN FINALIZADA\n\nArchivos seleccionados: ${files.length}\nCorrectos: ${ok}\nCon errores: ${ko}\n\n"+
-(ok?"REGISTROS POR ARCHIVO:${porArch}\n\nTOTAL INCORPORADOS: ${tot.toLocaleString('es-ES')}\n\n":'TOTAL INCORPORADOS: 0\n\n')+
-"DUPLICADOS GESCAL26:\n• Registros marcados en rojo: ${regDup.toLocaleString('es-ES')}\n• GESCAL26 duplicados: ${distDup.toLocaleString('es-ES')}\n\n"+
+const log=`UNIFICACIÓN FINALIZADA\n\nArchivos seleccionados: ${files.length}\nCorrectos: ${ok}\nCon errores: ${ko}\n\n`+
+(ok?`REGISTROS POR ARCHIVO:${porArch}\n\nTOTAL INCORPORADOS: ${tot.toLocaleString('es-ES')}\n\n`:'TOTAL INCORPORADOS: 0\n\n')+
+`DUPLICADOS GESCAL26:\n• Registros marcados en rojo: ${regDup.toLocaleString('es-ES')}\n• GESCAL26 duplicados: ${distDup.toLocaleString('es-ES')}\n\n`+
 (ko?'ARCHIVOS CON ERRORES:'+errs:'Sin errores en los archivos seleccionados.');
 return {wb:out,nombre:'UNIFICADO.xlsx',log};
 }
@@ -218,31 +219,47 @@ const MACROS=[
 ];
 
 /* ============ Licencias (Supabase) ============ */
-const SUPABASE_URL = "https://uftfbhkaienoukgdomvg.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_NOtoNEGu8fC4TYMVXI2Ysg_x79oBgfn";
+const SUPABASE_URL="https://uftfbhkaienoukgdomvg.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_NOtoNEGu8fC4TYMVXI2Ysg_x79oBgfn";
 
-const sb = (SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && window.supabase)
-? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-: null;
+const sb=(SUPABASE_URL&&SUPABASE_PUBLISHABLE_KEY&&window.supabase)
+?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)
+:null;
 
 let lic=null;
+
 async function refrescarLic(){
 if(!sb){$('lic').textContent='Modo local (sin licencias)';$('auth').classList.add('hide');return true}
 const {data:{session}}=await sb.auth.getSession();
-$('auth').classList.toggle('hide',!!session);$('salir').classList.toggle('hide',!session);
-if(!session){lic=null;$('lic').textContent='Inicia sesión para usar las macros';return false}
+$('auth').classList.toggle('hide',!!session);
+$('salir').classList.toggle('hide',!session);
+if(!session){
+lic=null;
+$('lic').textContent='Inicia sesión para usar las macros';
+return false
+}
 const {data,error}=await sb.rpc('comprobar_licencia');
 lic=error?{ok:false,mensaje:error.message}:data;
 $('lic').textContent=lic.ok
-?'🟢 '+(lic.plan==='pro'?'Versión completa':"Evaluación ${lic.usos}/${lic.max_usos}")+(lic.expira?' · caduca '+new Date(lic.expira).toLocaleDateString('es-ES'):'')
+?'🟢 '+(lic.plan==='pro'?'Versión completa':`Evaluación ${lic.usos}/${lic.max_usos}`)+(lic.expira?' · caduca '+new Date(lic.expira).toLocaleDateString('es-ES'):'')
 :'🔴 '+lic.mensaje;
 return !!lic.ok;
 }
+
 async function registrar(m,ok,err){
 if(!sb)return;
-try{await sb.rpc('registrar_ejecucion',{p_macro:m.nombre,p_archivo:files.map(f=>f.name).join(', '),p_ok:ok,p_error:err||null,p_filas:null})}catch(e){console.warn(e)}
+try{
+await sb.rpc('registrar_ejecucion',{
+p_macro:m.nombre,
+p_archivo:files.map(f=>f.name).join(', '),
+p_ok:ok,
+p_error:err||null,
+p_filas:null
+})
+}catch(e){console.warn(e)}
 refrescarLic();
 }
+
 const acceso=async fn=>{
 const email=$('email').value.trim(),password=$('pass').value;
 if(!email||!password){st('Escribe correo y contraseña');return}
@@ -250,19 +267,23 @@ const {error}=await fn({email,password});
 st(error?'❌ '+error.message:'✔ Hecho (si pide confirmar el correo, revisa tu bandeja)');
 refrescarLic();
 };
+
 if(sb){
 $('entrar').onclick=()=>acceso(c=>sb.auth.signInWithPassword(c));
 $('crear').onclick=()=>acceso(c=>sb.auth.signUp(c));
 $('salir').onclick=async()=>{await sb.auth.signOut();refrescarLic()};
 sb.auth.onAuthStateChange(()=>refrescarLic());
 }
+
 refrescarLic();
 
 let files=[],resultado=null;
-const sel=$('macro');MACROS.forEach((m,i)=>sel.add(new Option(m.nombre,i)));
+const sel=$('macro');
+MACROS.forEach((m,i)=>sel.add(new Option(m.nombre,i)));
 const cur=()=>MACROS[+sel.value];
 const prog=v=>{$('bar').firstChild.style.width=v+'%'};
 const st=t=>{$('st').textContent=t};
+
 function refrescar(){
 const m=cur();
 $('desc').textContent=m.desc;
@@ -272,50 +293,109 @@ $('rowHoja').classList.toggle('hide',m.multi);
 $('rowAutor').classList.toggle('hide',m.id!=='tuneado');
 $('go').disabled=!files.length;
 }
-sel.onchange=()=>{files=[];$('file').value='';$('fname').textContent='Ningún archivo seleccionado';$('dl').classList.add('hide');$('log').style.display='none';refrescar()};
+
+sel.onchange=()=>{
+files=[];
+$('file').value='';
+$('fname').textContent='Ningún archivo seleccionado';
+$('dl').classList.add('hide');
+$('log').style.display='none';
+refrescar()
+};
+
 $('file').onchange=async e=>{
-files=[...e.target.files];resultado=null;$('dl').classList.add('hide');
+files=[...e.target.files];
+resultado=null;
+$('dl').classList.add('hide');
 $('fname').textContent=files.length?files.map(f=>f.name).join(', '):'Ningún archivo seleccionado';
+
 if(files.length&&!cur().multi){
 try{
-const wb=new ExcelJS.Workbook();await wb.xlsx.load(await files[0].arrayBuffer());
-const h=$('hoja');h.innerHTML='';wb.worksheets.forEach(w=>h.add(new Option(w.name,w.name)));h.disabled=false;
-}catch(err){st('❌ No se pudo leer el Excel: '+err.message);files=[]}
+const wb=new ExcelJS.Workbook();
+await wb.xlsx.load(await files[0].arrayBuffer());
+const h=$('hoja');
+h.innerHTML='';
+wb.worksheets.forEach(w=>h.add(new Option(w.name,w.name)));
+h.disabled=false;
+}catch(err){
+st('❌ No se pudo leer el Excel: '+err.message);
+files=[]
+}
 }
 refrescar();
 };
+
 $('go').onclick=async()=>{
 const m=cur();
-if(!(await refrescarLic())){st('🔴 '+(lic?lic.mensaje:'Inicia sesión'));return}
-$('go').disabled=true;$('dl').classList.add('hide');$('log').style.display='none';prog(2);st('▶ Ejecutando…');
+if(!(await refrescarLic())){
+st('🔴 '+(lic?lic.mensaje:'Inicia sesión'));
+return
+}
+$('go').disabled=true;
+$('dl').classList.add('hide');
+$('log').style.display='none';
+prog(2);
+st('▶ Ejecutando…');
 const t0=Date.now();
+
 try{
 await tick();
 let r;
-if(m.multi){r=await m.run(files,{p:prog});r.buf=await r.wb.xlsx.writeBuffer()}
-else{
-const wb=new ExcelJS.Workbook();await wb.xlsx.load(await files[0].arrayBuffer());
-r=await m.run(wb,$('hoja').value,{p:prog,autor:$('autor').value.trim(),base:files[0].name.replace(/.[^.]+$/,'')});
+
+if(m.multi){
+r=await m.run(files,{p:prog});
+r.buf=await r.wb.xlsx.writeBuffer()
+}else{
+const wb=new ExcelJS.Workbook();
+await wb.xlsx.load(await files[0].arrayBuffer());
+r=await m.run(wb,$('hoja').value,{
+p:prog,
+autor:$('autor').value.trim(),
+base:files[0].name.replace(/\.[^.]+$/,'')
+});
 r.buf=await wb.xlsx.writeBuffer();
 }
-resultado=r;prog(100);registrar(m,true);
-st("✔ Completado en ${((Date.now()-t0)/1000).toFixed(1)} s");
-$('log').textContent=r.log;$('log').style.display='block';$('dl').classList.remove('hide');
+
+resultado=r;
+prog(100);
+registrar(m,true);
+st(`✔ Completado en ${((Date.now()-t0)/1000).toFixed(1)} s`);
+$('log').textContent=r.log;
+$('log').style.display='block';
+$('dl').classList.remove('hide');
+
 }catch(err){
-console.error(err);st('❌ Error: '+err.message);registrar(m,false,err.message);$('log').textContent=err.stack||String(err);$('log').style.display='block';prog(0);
+console.error(err);
+st('❌ Error: '+err.message);
+registrar(m,false,err.message);
+$('log').textContent=err.stack||String(err);
+$('log').style.display='block';
+prog(0);
 }
+
 $('go').disabled=!files.length;
 };
+
 $('dl').onclick=async()=>{
 if(!resultado)return;
 try{
 const d=await (window.claude&&claude.use?claude.use('downloads'):null);
-if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
-}catch(e){if(e&&e.code==='declined')return;console.warn(e)}
-const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([resultado.buf]));a.download=resultado.nombre;a.click();
+if(d){
+await d.save({filename:resultado.nombre,data:resultado.buf});
+return
+}
+}catch(e){
+if(e&&e.code==='declined')return;
+console.warn(e)
+}
+
+const a=document.createElement('a');
+a.href=URL.createObjectURL(new Blob([resultado.buf]));
+a.download=resultado.nombre;
+a.click();
 };
+
 refrescar();
 </script>
-
 </body>
 </html>
