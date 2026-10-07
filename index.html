@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html><html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -65,263 +64,258 @@ const colN=s=>s.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0);
 const lastRow=(ws,col)=>{for(let r=ws.rowCount;r>=1;r--)if(raw(ws.getCell(r,col))!=='')return r;return 1};
 const Y='FFFFFF00',O='FFFFC000';
 const fill=(c,argb)=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb}}};
-const tick=()=>new Promise(r=>setTimeout(r,0));
-
-/* ---- mover / insertar columnas con la semántica de Excel (Cortar + Insertar) ---- */
-function moveCol(ws,from,to){
-  const dest=from<to?to-1:to;if(from===dest)return;
-  const lo=Math.min(from,dest),hi=Math.max(from,dest);
-  for(let r=1;r<=ws.rowCount;r++){
-    const row=ws.getRow(r),snap=[];
-    for(let c=lo;c<=hi;c++){const x=row.getCell(c);snap.push({v:x.value,s:{...x.style}})}
-    const m=snap.splice(from-lo,1)[0];snap.splice(dest-lo,0,m);
-    snap.forEach((o,i)=>{const x=row.getCell(lo+i);x.value=o.v;x.style=o.s});
-  }
+const tick=()=>new Promise(r=>setTimeout(r,0));function moveCol(ws,from,to){
+const dest=from<to?to-1:to;if(from===dest)return;
+const lo=Math.min(from,dest),hi=Math.max(from,dest);
+for(let r=1;r<=ws.rowCount;r++){
+const row=ws.getRow(r),snap=[];
+for(let c=lo;c<=hi;c++){const x=row.getCell(c);snap.push({v:x.value,s:{...x.style}})}
+const m=snap.splice(from-lo,1)[0];snap.splice(dest-lo,0,m);
+snap.forEach((o,i)=>{const x=row.getCell(lo+i);x.value=o.v;x.style=o.s});
+}
 }
 function insertCol(ws,at){
-  const W=Math.max(ws.columnCount,at)+1;
-  for(let r=1;r<=ws.rowCount;r++){
-    const row=ws.getRow(r);
-    for(let c=W;c>at;c--){const a=row.getCell(c-1),b=row.getCell(c);b.value=a.value;b.style={...a.style}}
-    const z=row.getCell(at);z.value=null;z.style={};
-  }
+const W=Math.max(ws.columnCount,at)+1;
+for(let r=1;r<=ws.rowCount;r++){
+const row=ws.getRow(r);
+for(let c=W;c>at;c--){const a=row.getCell(c-1),b=row.getCell(c);b.value=a.value;b.style={...a.style}}
+const z=row.getCell(at);z.value=null;z.style={};
+}
 }
 
-/* ============ MACRO 1: TUNEADO_EXPERT ============ */
 const MAP_Z=[["ALTAS POR AEREO","NO APLICA"],["AZOTEA","EN GESTION"],["CHALET ICT","EN GESTION"],["EN CONSTRUCCION","EN GESTION"],["FACHADA","NO REQUIERE"],["INTERIOR","EN GESTION"],["MIXTO","EN GESTION"],["PATIO","EN GESTION"],["PEDESTAL","NO REQUIERE"],["POSTE","NO APLICA"]];
 const MAP_AC=[["EN CONSTRUCCION","FECHA ENTREGA DE LLAVES DESCONOCIDA"],["MIXTO","¿Tipo de Instalaciones que servician a la finca?"]];
-const nest=(m,ref)=>m.reduceRight((acc,[k,v])=>`IF(${ref}="${k}","${v}",${acc})`,'""');
+const nest=(m,ref)=>m.reduceRight((acc,[k,v])=>"IF(${ref}="${k}","${v}",${acc})",'""');
 const LIST_AD='MV,MV/OR,MV/MM,MV/JZ,MV/OTROS,MV/OR/OTROS,MV/MM/OTROS,MV/JZ/OTROS,MV/MM/OR/OTROS,MV/MM/JZ/OTROS,MM,MM/OR,MM/JZ,MM/OTROS,MM/OR/OTROS,MM/JZ/OTROS,OR,OR/JZ,OR/OTROS,OR/JZ/OTROS,OTROS,NO FO';
 const LIST_T='ALTAS POR AEREO,AZOTEA,CHALET ICT,EN CONSTRUCCION,FACHADA,INTERIOR,MIXTO,PATIO,PEDESTAL,POSTE';
 const dvList=l=>({type:'list',allowBlank:true,formulae:['"'+l+'"'],showErrorMessage:true,errorStyle:'stop'});
 
 async function tuneado(wb,hoja,o){
-  const ws=wb.getWorksheet(hoja);
-  const C=colN,g=(r,c)=>ws.getCell(r,c);
-  ws.autoFilter=null;
-  ws.dataValidations.model={};
-  ws.conditionalFormattings=[];
-  try{wb.definedNames.model=wb.definedNames.model.filter(d=>!/_FilterDatabase/i.test(d.name))}catch(e){}
-  const lastC=lastRow(ws,3);
-  for(let r=2;r<=lastC;r++){const c=g(r,3);const v=raw(c);c.numFmt='General';c.value=v}
-  let ultCol=ws.columnCount;while(ultCol>1&&raw(g(1,ultCol))==='')ultCol--;
-  let lr=lastRow(ws,6);
-  for(let r=2;r<=lr;r++){const c=g(r,6);c.value=raw(c)}
-  lr=lastRow(ws,10);
-  const K=['-','---','--','-','--'];
-  for(let r=2;r<=lr;r++)K.forEach((v,i)=>{g(r,10+i).value=v});
-  o.p(15);
-  const valorAR=raw(g(1,44));let valorCZM='';
-  let cPlano=0,cCenso=0,cVolc=0;
-  for(let i=1;i<=ultCol;i++){
-    const h=String(raw(g(1,i))).trim().toUpperCase();
-    if(h==='PLANO'||h==='PLANOS'||h==='CENSUS-ZONE-MAP'){cPlano=i;if(h==='CENSUS-ZONE-MAP')valorCZM=raw(g(1,i))}
-    if(h==='AUTOR CENSO')cCenso=i;
-    if(h==='AUTOR VOLCADO')cVolc=i;
-  }
-  if(cPlano>0){if(cPlano!==44)moveCol(ws,cPlano,44);if(valorCZM==='')g(1,44).value='PLANO'}else insertCol(ws,44);
-  if(cCenso>0){if(cCenso!==45)moveCol(ws,cCenso,45)}else insertCol(ws,45);
-  g(1,45).value='AUTOR CENSO';
-  if(cVolc>0){if(cVolc!==46)moveCol(ws,cVolc,46)}else insertCol(ws,46);
-  g(1,46).value='AUTOR VOLCADO';
-  g(1,44).value=valorAR;
-  if(valorCZM!=='')g(1,44).value=valorCZM;
-  o.p(35);await tick();
-  const uf=lastRow(ws,6);
-  const ceros=['Q','AN','BA','AT','U','Z','AR','AD','AC'].map(colN);
-  for(let r=2;r<=uf;r++)ceros.forEach(c=>{g(r,c).value=0});
-  /* GESCAL 12 (BA) = primeros 12 de F; F = BA + NUM(I) con ceros a 5 */
-  g(1,53).value='GESCAL 12';fill(g(1,53),Y);
-  const lbl=ws.getRow(1);
-  for(let r=2;r<=uf;r++){
-    const ba=String(raw(g(r,6))).slice(0,12);
-    g(r,53).value=ba;
-    const num=String(raw(g(r,9)));
-    const fv=ba+'0'.repeat(Math.max(0,5-num.length))+num;
-    g(r,40).value={formula:`IF(ISNUMBER(SEARCH("DUMMY",AC${r})),"1","0")`,result:'0'};
-    g(r,17).value={formula:`R${r}+S${r}`,result:(+raw(g(r,18))||0)+(+raw(g(r,19))||0)};
-    g(r,6).value={formula:`CONCATENATE(BA${r},CONCATENATE(REPT("0",5-LEN(I${r})),I${r}))`,result:fv};
-    g(r,3).value={formula:`CONCATENATE(F${r},J${r},K${r},L${r},M${r},N${r})`,result:fv+K.join('')};
-    g(r,46).value=o.autor;
-    g(r,26).value={formula:nest(MAP_Z,'T'+r),result:''};
-    g(r,21).value={formula:`IF(T${r}="INTERIOR","NO ICT","")`,result:''};
-    g(r,29).value={formula:nest(MAP_AC,'T'+r),result:''};
-    ['F','Q','AN','BA'].forEach(x=>{g(r,colN(x)).numFmt='General'});
-    g(r,23).numFmt='dd/mm/yyyy';
-    g(r,20).value=null;
-    g(r,30).value=null;
-    g(r,15).value=null;
-    g(r,40).alignment={horizontal:'right',vertical:'bottom'};
-  }
-  if(uf>=2){
-    const DV=ws.dataValidations.model;
-    DV['T2:T'+uf]=dvList(LIST_T);
-    DV['AD2:AD'+uf]=dvList(LIST_AD);
-    DV['W2:W'+uf]={type:'date',operator:'between',allowBlank:true,formulae:[new Date(Date.UTC(1899,11,31)),new Date(Date.UTC(2100,11,31))],showErrorMessage:true,errorStyle:'stop'};
-  }
-  const lb=lastRow(ws,2);
-  for(let r=2;r<=lb;r++)g(r,44).value={formula:`IF(ISNUMBER(R${r}),0," ")`,result:typeof raw(g(r,18))==='number'?0:' '};
-  o.p(70);await tick();
-  /* formato */
-  ws.getRow(1).height=30.6;
-  const Wd=(a,b,w)=>{for(let c=colN(a);c<=colN(b||a);c++)ws.getColumn(c).width=w};
-  [['A',0,3],['B',0,3],['C',0,7],['D',0,6],['E',0,.1],['F',0,19.5],['G',0,5],['H',0,12],['I',0,6],['J',0,2],['K',0,3],['L',0,2],['M',0,2],['N',0,2],['O',0,.1],['P',0,.1],['Q',0,6],['R',0,7],['S',0,7],['T',0,9],['U',0,9],['V',0,.1],['W',0,11],['X',0,.1],['Y',0,.1],['Z',0,11],['AE','AM',.1],['AN',0,7],['AC',0,8],['AO','AV',.1],['AD',0,7],['BA',0,11],['AA',0,.1],['AB',0,.1],['AZ',0,3],['AW',0,.1],['AX',0,.1],['AY',0,.1]].forEach(([a,b,w])=>Wd(a,b||a,w));
-  const ye=[[1,4],[6,7],[9,14],[18,21],[23,23],[26,26],[29,30],[40,40],[44,46],[53,53]];
-  ye.forEach(([a,b])=>{for(let c=a;c<=b;c++)fill(g(1,c),Y)});
-  fill(g(1,8),O);fill(g(1,17),O);
-  const h=c=>raw(g(1,c));
-  if(h(44)==='CENSUS-ZONE-MAP'||h(44)==='PLANO')Wd('AR','AR',8);
-  if(h(45)==='AUTOR CENSO')Wd('AS','AS',8);
-  if(h(46)==='AUTOR VOLCADO')Wd('AT','AT',8);
-  ['AW','AX','AY'].forEach(x=>{if(h(colN(x))==='')Wd(x,x,.1)});
-  if(h(colN('AZ'))===''){Wd('AZ','AZ',4);Wd('A','A',2)}
-  for(let c=1;c<=Math.max(ws.columnCount,53);c++)g(1,c).alignment={vertical:'bottom',wrapText:true,horizontal:c===40?'right':undefined};
-  ws.views=[{state:'frozen',xSplit:0,ySplit:1}];
-  wb.calcProperties={fullCalcOnLoad:true};
-  o.p(95);
-  return {nombre:o.base+'_procesado.xlsx',log:`Hoja «${hoja}»: ${uf-1} filas tuneadas.`};
+const ws=wb.getWorksheet(hoja);
+const C=colN,g=(r,c)=>ws.getCell(r,c);
+ws.autoFilter=null;
+ws.dataValidations.model={};
+ws.conditionalFormattings=[];
+try{wb.definedNames.model=wb.definedNames.model.filter(d=>!/_FilterDatabase/i.test(d.name))}catch(e){}
+const lastC=lastRow(ws,3);
+for(let r=2;r<=lastC;r++){const c=g(r,3);const v=raw(c);c.numFmt='General';c.value=v}
+let ultCol=ws.columnCount;while(ultCol>1&&raw(g(1,ultCol))==='')ultCol--;
+let lr=lastRow(ws,6);
+for(let r=2;r<=lr;r++){const c=g(r,6);c.value=raw(c)}
+lr=lastRow(ws,10);
+const K=['-','---','--','-','--'];
+for(let r=2;r<=lr;r++)K.forEach((v,i)=>{g(r,10+i).value=v});
+o.p(15);
+const valorAR=raw(g(1,44));let valorCZM='';
+let cPlano=0,cCenso=0,cVolc=0;
+for(let i=1;i<=ultCol;i++){
+const h=String(raw(g(1,i))).trim().toUpperCase();
+if(h==='PLANO'||h==='PLANOS'||h==='CENSUS-ZONE-MAP'){cPlano=i;if(h==='CENSUS-ZONE-MAP')valorCZM=raw(g(1,i))}
+if(h==='AUTOR CENSO')cCenso=i;
+if(h==='AUTOR VOLCADO')cVolc=i;
+}
+if(cPlano>0){if(cPlano!==44)moveCol(ws,cPlano,44);if(valorCZM==='')g(1,44).value='PLANO'}else insertCol(ws,44);
+if(cCenso>0){if(cCenso!==45)moveCol(ws,cCenso,45)}else insertCol(ws,45);
+g(1,45).value='AUTOR CENSO';
+if(cVolc>0){if(cVolc!==46)moveCol(ws,cVolc,46)}else insertCol(ws,46);
+g(1,46).value='AUTOR VOLCADO';
+g(1,44).value=valorAR;
+if(valorCZM!=='')g(1,44).value=valorCZM;
+o.p(35);await tick();
+const uf=lastRow(ws,6);
+const ceros=['Q','AN','BA','AT','U','Z','AR','AD','AC'].map(colN);
+for(let r=2;r<=uf;r++)ceros.forEach(c=>{g(r,c).value=0});
+g(1,53).value='GESCAL 12';fill(g(1,53),Y);
+const lbl=ws.getRow(1);
+for(let r=2;r<=uf;r++){
+const ba=String(raw(g(r,6))).slice(0,12);
+g(r,53).value=ba;
+const num=String(raw(g(r,9)));
+const fv=ba+'0'.repeat(Math.max(0,5-num.length))+num;
+g(r,40).value={formula:"IF(ISNUMBER(SEARCH("DUMMY",AC${r})),"1","0")",result:'0'};
+g(r,17).value={formula:"R${r}+S${r}",result:(+raw(g(r,18))||0)+(+raw(g(r,19))||0)};
+g(r,6).value={formula:"CONCATENATE(BA${r},CONCATENATE(REPT("0",5-LEN(I${r})),I${r}))",result:fv};
+g(r,3).value={formula:"CONCATENATE(F${r},J${r},K${r},L${r},M${r},N${r})",result:fv+K.join('')};
+g(r,46).value=o.autor;
+g(r,26).value={formula:nest(MAP_Z,'T'+r),result:''};
+g(r,21).value={formula:"IF(T${r}="INTERIOR","NO ICT","")",result:''};
+g(r,29).value={formula:nest(MAP_AC,'T'+r),result:''};
+['F','Q','AN','BA'].forEach(x=>{g(r,colN(x)).numFmt='General'});
+g(r,23).numFmt='dd/mm/yyyy';
+g(r,20).value=null;
+g(r,30).value=null;
+g(r,15).value=null;
+g(r,40).alignment={horizontal:'right',vertical:'bottom'};
+}
+if(uf>=2){
+const DV=ws.dataValidations.model;
+DV['T2:T'+uf]=dvList(LIST_T);
+DV['AD2:AD'+uf]=dvList(LIST_AD);
+DV['W2:W'+uf]={type:'date',operator:'between',allowBlank:true,formulae:[new Date(Date.UTC(1899,11,31)),new Date(Date.UTC(2100,11,31))],showErrorMessage:true,errorStyle:'stop'};
+}
+const lb=lastRow(ws,2);
+for(let r=2;r<=lb;r++)g(r,44).value={formula:"IF(ISNUMBER(R${r}),0," ")",result:typeof raw(g(r,18))==='number'?0:' '};
+o.p(70);await tick();
+ws.getRow(1).height=30.6;
+const Wd=(a,b,w)=>{for(let c=colN(a);c<=colN(b||a);c++)ws.getColumn(c).width=w};
+[['A',0,3],['B',0,3],['C',0,7],['D',0,6],['E',0,.1],['F',0,19.5],['G',0,5],['H',0,12],['I',0,6],['J',0,2],['K',0,3],['L',0,2],['M',0,2],['N',0,2],['O',0,.1],['P',0,.1],['Q',0,6],['R',0,7],['S',0,7],['T',0,9],['U',0,9],['V',0,.1],['W',0,11],['X',0,.1],['Y',0,.1],['Z',0,11],['AE','AM',.1],['AN',0,7],['AC',0,8],['AO','AV',.1],['AD',0,7],['BA',0,11],['AA',0,.1],['AB',0,.1],['AZ',0,3],['AW',0,.1],['AX',0,.1],['AY',0,.1]].forEach(([a,b,w])=>Wd(a,b||a,w));
+const ye=[[1,4],[6,7],[9,14],[18,21],[23,23],[26,26],[29,30],[40,40],[44,46],[53,53]];
+ye.forEach(([a,b])=>{for(let c=a;c<=b;c++)fill(g(1,c),Y)});
+fill(g(1,8),O);fill(g(1,17),O);
+const h=c=>raw(g(1,c));
+if(h(44)==='CENSUS-ZONE-MAP'||h(44)==='PLANO')Wd('AR','AR',8);
+if(h(45)==='AUTOR CENSO')Wd('AS','AS',8);
+if(h(46)==='AUTOR VOLCADO')Wd('AT','AT',8);
+['AW','AX','AY'].forEach(x=>{if(h(colN(x))==='')Wd(x,x,.1)});
+if(h(colN('AZ'))===''){Wd('AZ','AZ',4);Wd('A','A',2)}
+for(let c=1;c<=Math.max(ws.columnCount,53);c++)g(1,c).alignment={vertical:'bottom',wrapText:true,horizontal:c===40?'right':undefined};
+ws.views=[{state:'frozen',xSplit:0,ySplit:1}];
+wb.calcProperties={fullCalcOnLoad:true};
+o.p(95);
+return {nombre:o.base+'_procesado.xlsx',log:"Hoja «${hoja}»: ${uf-1} filas tuneadas."};
 }
 
-/* ============ MACRO 2: UNIFICAR_ARCHIVOS ============ */
 const H=["PROVINCIA","POBLACION","GESCAL26","CODIGO-POSTAL","FTTB-CODE","GESCAL17","TIPO-VIA","NOMBRE-VIA","NUM","BIS-DUPLICADO","BLOQUE","PORTAL-PUERTA","LETRA-FINCA","ESCALERA","CONCATENADO","ZONA-GPON","TOTALES","NUM-DE-HOGARES","NUM-DE-LOCALES","TIPO-DE-PERMISO","TIPO-INSTALACION-INTERIOR","REPLANTEO-REALIZADO","FECHA-DE-CENSO","FECHA-CONTACTADO","FECHA-FIRMA","ESTADO-DE-PERMISO","ID-PERMISO","AGENTE-DE-PERMISO","OBSERVACIONES","OPERADORES-PREVIOS","FINCA-PRIORITARIA-(ES-LATERAL)","NUM-DE-CARTAS-FIRMADAS","CLIENTES","NUM-CLIENTES-EXISTENTES","NUM-CLIENTES-MOVIL","CIENTES-NEBA-A-MIGRAR","SEMANA","COBERTURA","PROYECTO","DUMMY","ZONA-PON-ASBUILT","HOGARES-FUSIONADOS","CTOs","PLANO","AUTOR CENSO","AUTOR VOLCADO","Unnamed: 46","Unnamed: 47","Unnamed: 48","Unnamed: 49","Unnamed: 50","Unnamed: 51","GESCAL 12","CHECK","GESCAL12","Nº NOMBRES VIA"];
 async function unificar(files,o){
-  const out=new ExcelJS.Workbook(),ws=out.addWorksheet('UNIFICADO');
-  ws.addRow(H);
-  let ok=0,ko=0,tot=0,porArch='',errs='';
-  for(let k=0;k<files.length;k++){
-    const f=files[k];o.p(5+85*k/files.length);await tick();
-    let wb=new ExcelJS.Workbook();
-    try{await wb.xlsx.load(await f.arrayBuffer())}catch(e){ko++;errs+=`\nARCHIVO: ${f.name}\n  No se pudo abrir (¿es .xls? guárdalo como .xlsx).\n  Archivo NO incorporado.\n`;continue}
-    const s=wb.worksheets[0];
-    if(!s){ko++;errs+=`\nARCHIVO: ${f.name}\n  No contiene hojas.\n  Archivo NO incorporado.\n`;continue}
-    let e='';
-    H.forEach((h,i)=>{const v=String(raw(s.getCell(1,i+1)));if(v.trim()!==h.trim())e+=`  Columna ${i+1}\n    Esperado: "${h}"\n    Encontrado: "${v}"\n`});
-    if(e){ko++;errs+=`\nARCHIVO: ${f.name}\n  ENCABEZADOS INCORRECTOS:\n${e}  Archivo NO incorporado.\n`;continue}
-    let ult=1;
-    for(let r=s.rowCount;r>=2&&ult===1;r--)for(let c=1;c<=55;c++)if(raw(s.getCell(r,c))!==''){ult=r;break}
-    ok++;
-    for(let r=2;r<=ult;r++){
-      const vals=[];for(let c=1;c<=55;c++)vals.push(raw(s.getCell(r,c))||null);
-      const row=ws.addRow(vals);row.getCell(6).numFmt=s.getCell(r,6).numFmt;
-    }
-    tot+=ult-1;porArch+=`\n• ${f.name} → ${(ult-1).toLocaleString('es-ES')} filas`;
-  }
-  /* duplicados GESCAL26 (col C): se marcan en rojo, no se borran */
-  const cnt=new Map();
-  for(let r=2;r<=tot+1;r++){const v=String(raw(ws.getCell(r,3))).trim().toLowerCase();if(v)cnt.set(v,(cnt.get(v)||0)+1)}
-  let regDup=0,distDup=0;cnt.forEach(n=>{if(n>1)distDup++});
-  for(let r=2;r<=tot+1;r++){const c=ws.getCell(r,3),v=String(raw(c)).trim().toLowerCase();if(v&&cnt.get(v)>1){fill(c,'FFFFC7CE');regDup++}}
-  ws.getRow(1).font={bold:true};
-  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:55}};
-  H.forEach((h,i)=>{ws.getColumn(i+1).width=Math.min(40,Math.max(10,h.length+3))});
-  const log=`UNIFICACIÓN FINALIZADA\n\nArchivos seleccionados: ${files.length}\nCorrectos: ${ok}\nCon errores: ${ko}\n\n`+
-    (ok?`REGISTROS POR ARCHIVO:${porArch}\n\nTOTAL INCORPORADOS: ${tot.toLocaleString('es-ES')}\n\n`:'TOTAL INCORPORADOS: 0\n\n')+
-    `DUPLICADOS GESCAL26:\n• Registros marcados en rojo: ${regDup.toLocaleString('es-ES')}\n• GESCAL26 duplicados: ${distDup.toLocaleString('es-ES')}\n\n`+
-    (ko?'ARCHIVOS CON ERRORES:'+errs:'Sin errores en los archivos seleccionados.');
-  return {wb:out,nombre:'UNIFICADO.xlsx',log};
+const out=new ExcelJS.Workbook(),ws=out.addWorksheet('UNIFICADO');
+ws.addRow(H);
+let ok=0,ko=0,tot=0,porArch='',errs='';
+for(let k=0;k<files.length;k++){
+const f=files[k];o.p(5+85*k/files.length);await tick();
+let wb=new ExcelJS.Workbook();
+try{await wb.xlsx.load(await f.arrayBuffer())}catch(e){ko++;errs+="\nARCHIVO: ${f.name}\n  No se pudo abrir (¿es .xls? guárdalo como .xlsx).\n  Archivo NO incorporado.\n";continue}
+const s=wb.worksheets[0];
+if(!s){ko++;errs+="\nARCHIVO: ${f.name}\n  No contiene hojas.\n  Archivo NO incorporado.\n";continue}
+let e='';
+H.forEach((h,i)=>{const v=String(raw(s.getCell(1,i+1)));if(v.trim()!==h.trim())e+="  Columna ${i+1}\n    Esperado: "${h}"\n    Encontrado: "${v}"\n"});
+if(e){ko++;errs+="\nARCHIVO: ${f.name}\n  ENCABEZADOS INCORRECTOS:\n${e}  Archivo NO incorporado.\n";continue}
+let ult=1;
+for(let r=s.rowCount;r>=2&&ult===1;r--)for(let c=1;c<=55;c++)if(raw(s.getCell(r,c))!==''){ult=r;break}
+ok++;
+for(let r=2;r<=ult;r++){
+const vals=[];for(let c=1;c<=55;c++)vals.push(raw(s.getCell(r,c))||null);
+const row=ws.addRow(vals);row.getCell(6).numFmt=s.getCell(r,6).numFmt;
+}
+tot+=ult-1;porArch+="\n• ${f.name} → ${(ult-1).toLocaleString('es-ES')} filas";
+}
+const cnt=new Map();
+for(let r=2;r<=tot+1;r++){const v=String(raw(ws.getCell(r,3))).trim().toLowerCase();if(v)cnt.set(v,(cnt.get(v)||0)+1)}
+let regDup=0,distDup=0;cnt.forEach(n=>{if(n>1)distDup++});
+for(let r=2;r<=tot+1;r++){const c=ws.getCell(r,3),v=String(raw(c)).trim().toLowerCase();if(v&&cnt.get(v)>1){fill(c,'FFFFC7CE');regDup++}}
+ws.getRow(1).font={bold:true};
+ws.autoFilter={from:{row:1,column:1},to:{row:1,column:55}};
+H.forEach((h,i)=>{ws.getColumn(i+1).width=Math.min(40,Math.max(10,h.length+3))});
+const log="UNIFICACIÓN FINALIZADA\n\nArchivos seleccionados: ${files.length}\nCorrectos: ${ok}\nCon errores: ${ko}\n\n"+
+(ok?"REGISTROS POR ARCHIVO:${porArch}\n\nTOTAL INCORPORADOS: ${tot.toLocaleString('es-ES')}\n\n":'TOTAL INCORPORADOS: 0\n\n')+
+"DUPLICADOS GESCAL26:\n• Registros marcados en rojo: ${regDup.toLocaleString('es-ES')}\n• GESCAL26 duplicados: ${distDup.toLocaleString('es-ES')}\n\n"+
+(ko?'ARCHIVOS CON ERRORES:'+errs:'Sin errores en los archivos seleccionados.');
+return {wb:out,nombre:'UNIFICADO.xlsx',log};
 }
 
-/* ============ Catálogo de macros (añadir nuevas aquí) ============ */
 const MACROS=[
-  {id:'tuneado',nombre:'TUNEADO_EXPERT',desc:'Tunea una hoja: columnas, fórmulas, validaciones, anchos y colores.',multi:false,run:tuneado},
-  {id:'unificar',nombre:'UNIFICAR_ARCHIVOS',desc:'Une varios Excel con los 55 encabezados, marca duplicados GESCAL26 en rojo.',multi:true,run:unificar}
+{id:'tuneado',nombre:'TUNEADO_EXPERT',desc:'Tunea una hoja: columnas, fórmulas, validaciones, anchos y colores.',multi:false,run:tuneado},
+{id:'unificar',nombre:'UNIFICAR_ARCHIVOS',desc:'Une varios Excel con los 55 encabezados, marca duplicados GESCAL26 en rojo.',multi:true,run:unificar}
 ];
 
 /* ============ Licencias (Supabase) ============ */
 const SUPABASE_URL = "https://uftfbhkaienoukgdomvg.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_NOtoNEGu8fC4TYMVXI2Ysg_x79oBgfn";
-const sb=(SB_URL&&SB_KEY&&window.supabase)?supabase.createClient(SB_URL,SB_KEY):null;
+
+const sb = (SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && window.supabase)
+? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+: null;
+
 let lic=null;
 async function refrescarLic(){
-  if(!sb){$('lic').textContent='Modo local (sin licencias)';$('auth').classList.add('hide');return true}
-  const {data:{session}}=await sb.auth.getSession();
-  $('auth').classList.toggle('hide',!!session);$('salir').classList.toggle('hide',!session);
-  if(!session){lic=null;$('lic').textContent='Inicia sesión para usar las macros';return false}
-  const {data,error}=await sb.rpc('comprobar_licencia');
-  lic=error?{ok:false,mensaje:error.message}:data;
-  $('lic').textContent=lic.ok
-    ?'🟢 '+(lic.plan==='pro'?'Versión completa':`Evaluación ${lic.usos}/${lic.max_usos}`)+(lic.expira?' · caduca '+new Date(lic.expira).toLocaleDateString('es-ES'):'')
-    :'🔴 '+lic.mensaje;
-  return !!lic.ok;
+if(!sb){$('lic').textContent='Modo local (sin licencias)';$('auth').classList.add('hide');return true}
+const {data:{session}}=await sb.auth.getSession();
+$('auth').classList.toggle('hide',!!session);$('salir').classList.toggle('hide',!session);
+if(!session){lic=null;$('lic').textContent='Inicia sesión para usar las macros';return false}
+const {data,error}=await sb.rpc('comprobar_licencia');
+lic=error?{ok:false,mensaje:error.message}:data;
+$('lic').textContent=lic.ok
+?'🟢 '+(lic.plan==='pro'?'Versión completa':"Evaluación ${lic.usos}/${lic.max_usos}")+(lic.expira?' · caduca '+new Date(lic.expira).toLocaleDateString('es-ES'):'')
+:'🔴 '+lic.mensaje;
+return !!lic.ok;
 }
 async function registrar(m,ok,err){
-  if(!sb)return;
-  try{await sb.rpc('registrar_ejecucion',{p_macro:m.nombre,p_archivo:files.map(f=>f.name).join(', '),p_ok:ok,p_error:err||null,p_filas:null})}catch(e){console.warn(e)}
-  refrescarLic();
+if(!sb)return;
+try{await sb.rpc('registrar_ejecucion',{p_macro:m.nombre,p_archivo:files.map(f=>f.name).join(', '),p_ok:ok,p_error:err||null,p_filas:null})}catch(e){console.warn(e)}
+refrescarLic();
 }
 const acceso=async fn=>{
-  const email=$('email').value.trim(),password=$('pass').value;
-  if(!email||!password){st('Escribe correo y contraseña');return}
-  const {error}=await fn({email,password});
-  st(error?'❌ '+error.message:'✔ Hecho (si pide confirmar el correo, revisa tu bandeja)');
-  refrescarLic();
+const email=$('email').value.trim(),password=$('pass').value;
+if(!email||!password){st('Escribe correo y contraseña');return}
+const {error}=await fn({email,password});
+st(error?'❌ '+error.message:'✔ Hecho (si pide confirmar el correo, revisa tu bandeja)');
+refrescarLic();
 };
 if(sb){
-  $('entrar').onclick=()=>acceso(c=>sb.auth.signInWithPassword(c));
-  $('crear').onclick=()=>acceso(c=>sb.auth.signUp(c));
-  $('salir').onclick=async()=>{await sb.auth.signOut();refrescarLic()};
-  sb.auth.onAuthStateChange(()=>refrescarLic());
+$('entrar').onclick=()=>acceso(c=>sb.auth.signInWithPassword(c));
+$('crear').onclick=()=>acceso(c=>sb.auth.signUp(c));
+$('salir').onclick=async()=>{await sb.auth.signOut();refrescarLic()};
+sb.auth.onAuthStateChange(()=>refrescarLic());
 }
 refrescarLic();
 
-/* ============ UI ============ */
 let files=[],resultado=null;
 const sel=$('macro');MACROS.forEach((m,i)=>sel.add(new Option(m.nombre,i)));
 const cur=()=>MACROS[+sel.value];
 const prog=v=>{$('bar').firstChild.style.width=v+'%'};
 const st=t=>{$('st').textContent=t};
 function refrescar(){
-  const m=cur();
-  $('desc').textContent=m.desc;
-  $('file').multiple=m.multi;
-  $('drop').firstChild.textContent=m.multi?'Seleccionar varios Excel (.xlsx)':'Seleccionar Excel (.xlsx)';
-  $('rowHoja').classList.toggle('hide',m.multi);
-  $('rowAutor').classList.toggle('hide',m.id!=='tuneado');
-  $('go').disabled=!files.length;
+const m=cur();
+$('desc').textContent=m.desc;
+$('file').multiple=m.multi;
+$('drop').firstChild.textContent=m.multi?'Seleccionar varios Excel (.xlsx)':'Seleccionar Excel (.xlsx)';
+$('rowHoja').classList.toggle('hide',m.multi);
+$('rowAutor').classList.toggle('hide',m.id!=='tuneado');
+$('go').disabled=!files.length;
 }
 sel.onchange=()=>{files=[];$('file').value='';$('fname').textContent='Ningún archivo seleccionado';$('dl').classList.add('hide');$('log').style.display='none';refrescar()};
 $('file').onchange=async e=>{
-  files=[...e.target.files];resultado=null;$('dl').classList.add('hide');
-  $('fname').textContent=files.length?files.map(f=>f.name).join(', '):'Ningún archivo seleccionado';
-  if(files.length&&!cur().multi){
-    try{
-      const wb=new ExcelJS.Workbook();await wb.xlsx.load(await files[0].arrayBuffer());
-      const h=$('hoja');h.innerHTML='';wb.worksheets.forEach(w=>h.add(new Option(w.name,w.name)));h.disabled=false;
-    }catch(err){st('❌ No se pudo leer el Excel: '+err.message);files=[]}
-  }
-  refrescar();
+files=[...e.target.files];resultado=null;$('dl').classList.add('hide');
+$('fname').textContent=files.length?files.map(f=>f.name).join(', '):'Ningún archivo seleccionado';
+if(files.length&&!cur().multi){
+try{
+const wb=new ExcelJS.Workbook();await wb.xlsx.load(await files[0].arrayBuffer());
+const h=$('hoja');h.innerHTML='';wb.worksheets.forEach(w=>h.add(new Option(w.name,w.name)));h.disabled=false;
+}catch(err){st('❌ No se pudo leer el Excel: '+err.message);files=[]}
+}
+refrescar();
 };
 $('go').onclick=async()=>{
-  const m=cur();
-  if(!(await refrescarLic())){st('🔴 '+(lic?lic.mensaje:'Inicia sesión'));return}
-  $('go').disabled=true;$('dl').classList.add('hide');$('log').style.display='none';prog(2);st('▶ Ejecutando…');
-  const t0=Date.now();
-  try{
-    await tick();
-    let r;
-    if(m.multi){r=await m.run(files,{p:prog});r.buf=await r.wb.xlsx.writeBuffer()}
-    else{
-      const wb=new ExcelJS.Workbook();await wb.xlsx.load(await files[0].arrayBuffer());
-      r=await m.run(wb,$('hoja').value,{p:prog,autor:$('autor').value.trim(),base:files[0].name.replace(/\.[^.]+$/,'')});
-      r.buf=await wb.xlsx.writeBuffer();
-    }
-    resultado=r;prog(100);registrar(m,true);
-    st(`✔ Completado en ${((Date.now()-t0)/1000).toFixed(1)} s`);
-    $('log').textContent=r.log;$('log').style.display='block';$('dl').classList.remove('hide');
-  }catch(err){
-    console.error(err);st('❌ Error: '+err.message);registrar(m,false,err.message);$('log').textContent=err.stack||String(err);$('log').style.display='block';prog(0);
-  }
-  $('go').disabled=!files.length;
+const m=cur();
+if(!(await refrescarLic())){st('🔴 '+(lic?lic.mensaje:'Inicia sesión'));return}
+$('go').disabled=true;$('dl').classList.add('hide');$('log').style.display='none';prog(2);st('▶ Ejecutando…');
+const t0=Date.now();
+try{
+await tick();
+let r;
+if(m.multi){r=await m.run(files,{p:prog});r.buf=await r.wb.xlsx.writeBuffer()}
+else{
+const wb=new ExcelJS.Workbook();await wb.xlsx.load(await files[0].arrayBuffer());
+r=await m.run(wb,$('hoja').value,{p:prog,autor:$('autor').value.trim(),base:files[0].name.replace(/.[^.]+$/,'')});
+r.buf=await wb.xlsx.writeBuffer();
+}
+resultado=r;prog(100);registrar(m,true);
+st("✔ Completado en ${((Date.now()-t0)/1000).toFixed(1)} s");
+$('log').textContent=r.log;$('log').style.display='block';$('dl').classList.remove('hide');
+}catch(err){
+console.error(err);st('❌ Error: '+err.message);registrar(m,false,err.message);$('log').textContent=err.stack||String(err);$('log').style.display='block';prog(0);
+}
+$('go').disabled=!files.length;
 };
 $('dl').onclick=async()=>{
-  if(!resultado)return;
-  try{
-    const d=await (window.claude&&claude.use?claude.use('downloads'):null);
-    if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
-  }catch(e){if(e&&e.code==='declined')return;console.warn(e)}
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([resultado.buf]));a.download=resultado.nombre;a.click();
+if(!resultado)return;
+try{
+const d=await (window.claude&&claude.use?claude.use('downloads'):null);
+if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
+}catch(e){if(e&&e.code==='declined')return;console.warn(e)}
+const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([resultado.buf]));a.download=resultado.nombre;a.click();
 };
 refrescar();
 </script>
+
 </body>
 </html>
