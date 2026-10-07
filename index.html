@@ -328,4 +328,11 @@ $('dl').onclick=async()=>{
   if(!resultado)return;
   try{
     const d=await (window.claude&&claude.use?claude.use('downloads'):null);
-  
+    if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
+  }catch(e){if(e&&e.code==='declined')return;console.warn(e)}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([resultado.buf]));a.download=resultado.nombre;a.click();
+};
+refrescar();
+</script>
+</body>
+</html>
