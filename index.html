@@ -342,6 +342,22 @@ $('go').onclick=async()=>{
 };
 $('dl').onclick=async()=>{
   if(!resultado)return;
+  /* 1) Guardar como: el usuario elige carpeta y nombre (Chrome/Edge de escritorio) */
+  if(window.showSaveFilePicker){
+    try{
+      const XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const h=await showSaveFilePicker({suggestedName:resultado.nombre,types:[{description:'Excel (.xlsx)',accept:{[XLSX_MIME]:['.xlsx']}}]});
+      const w=await h.createWritable();
+      await w.write(new Blob([resultado.buf],{type:XLSX_MIME}));
+      await w.close();
+      st('✔ Guardado como '+h.name);
+      return;
+    }catch(e){
+      if(e&&e.name==='AbortError')return; /* canceló el diálogo */
+      console.warn(e); /* si falla, se usa la descarga normal */
+    }
+  }
+  /* 2) Alternativa: descarga normal (navegadores sin selector, móvil) */
   try{
     const d=await (window.claude&&claude.use?claude.use('downloads'):null);
     if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
