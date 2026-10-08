@@ -34,6 +34,7 @@ button.go{background:var(--ac);color:#fff}
 #bar{height:6px;border-radius:4px;background:var(--bd);overflow:hidden}#bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .2s}
 pre{margin:0;max-height:260px;overflow:auto;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap;display:none}
 .hide{display:none}
+#dl.hide+#sh{display:none}
 #lic{text-align:center;font-size:13px;margin-bottom:10px;color:var(--soft)}
 .row{display:flex;gap:8px}.row button{flex:1;padding:9px;font-size:13px}
 button.sm{padding:6px 10px;font-size:12px;border-width:1px}
@@ -63,6 +64,7 @@ button.sm{padding:6px 10px;font-size:12px;border-width:1px}
   <div id="bar"><i></i></div>
   <div id="st">Esperando…</div>
   <button id="dl" class="hide">⬇ Descargar resultado</button>
+  <button id="sh">📤 Compartir / guardar en…</button>
   <pre id="log"></pre>
 </div>
 </main>
@@ -363,6 +365,21 @@ $('dl').onclick=async()=>{
     if(d){await d.save({filename:resultado.nombre,data:resultado.buf});return}
   }catch(e){if(e&&e.code==='declined')return;console.warn(e)}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([resultado.buf]));a.download=resultado.nombre;a.click();
+};
+/* Compartir / guardar en… (móvil): abre el menú del sistema para elegir destino */
+const XLSX_MIME2='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const puedeCompartir=()=>{try{return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File(['x'],'a.xlsx',{type:XLSX_MIME2})]}))}catch(e){return false}};
+if(!puedeCompartir())$('sh').remove();
+else $('sh').onclick=async()=>{
+  if(!resultado)return;
+  try{
+    const f=new File([resultado.buf],resultado.nombre,{type:XLSX_MIME2});
+    await navigator.share({files:[f],title:resultado.nombre});
+    st('✔ Compartido');
+  }catch(e){
+    if(e&&e.name==='AbortError')return;
+    st('❌ No se pudo compartir: '+e.message);
+  }
 };
 refrescar();
 
